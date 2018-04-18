@@ -88,7 +88,7 @@ void keyboardFunc(unsigned char key, int x, int y)
 		break;
 
 	case 'd':
-		dots = 1 - dots;
+		//dots = 1 - dots;
 		break;
 
 	case 'b':
@@ -100,9 +100,9 @@ void keyboardFunc(unsigned char key, int x, int y)
 		break;
 
 	case 'r':
-		Theta = pi / 6;
+		Theta = -pi / 24;
 		Phi = -pi / 2;
-		R = 48;
+		R = 12;
 		break;
 
 	case 'p':
@@ -117,14 +117,6 @@ void keyboardFunc(unsigned char key, int x, int y)
 
 	case 'x':
 		R += 1;
-		break;
-
-	case 8:
-		deleteLastAttractor();
-		break;
-
-	case 127:
-		deleteLastRepeller();
 		break;
 
 	case ' ':

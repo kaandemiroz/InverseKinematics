@@ -15,13 +15,10 @@ Osman Kaan Demiroz
 // particle parameters
 const float step_time = 0.01f;
 
-int num_attractors;
-int num_repellers;
-
 // camera parameters
-double Theta = pi / 6;
-double Phi = -pi / 2;
-double R = 48;
+double Theta = -pi / 24;
+double Phi = -pi / 2 - pi / 24;
+double R = 12;
 
 double boxSize = 12;
 
@@ -36,9 +33,7 @@ int sprite = 0;
 bool mouseButtonHeld = false;
 
 // these variables control what is displayed on screen
-int pause = 0, box = 1, grid = 1, dots = 1, saveScreenToFile = 0;
-
-struct point original_points[8][8][8];
+int pause = 0, box = 1, grid = 1, saveScreenToFile = 0;
 
 int windowWidth, windowHeight;
 
@@ -47,9 +42,8 @@ float randomFloat()
 	return (float)rand() / ((float)RAND_MAX + 1);
 }
 
+bone skeleton[NUM_BONES];
 particle particles[NUM_PARTICLES];
-point attractors[NUM_MAX_ATTRACTORS];
-point repellers[NUM_MAX_REPELLERS];
 
 void myinit()
 {
@@ -65,7 +59,7 @@ void myinit()
 
 	glShadeModel(GL_SMOOTH);
 	//glEnable(GL_POLYGON_SMOOTH);
-	//glEnable(GL_LINE_SMOOTH);
+	glEnable(GL_LINE_SMOOTH);
 	glEnable(GL_POINT_SMOOTH);
 
 	glEnable(GL_BLEND);
@@ -107,19 +101,6 @@ point HSLToRGB(point hsl) {
 	return rgb;
 }
 
-point currentColor()
-{
-	point color;
-	int colorGradient = 20;
-	time_t timeValue = time(0);
-	float hue = (timeValue % colorGradient) * (1.0f / colorGradient);
-	point hsl = { hue, 0.8f, 0.6f };
-	//printf("Hue: %f\n", hue);
-	color = HSLToRGB(hsl);
-	//printf("RGB: { %f, %f, %f }\n", color.x, color.y, color.z);
-	return color;
-}
-
 float length(point p)
 {
 	return sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
@@ -149,80 +130,29 @@ point closestElement(particle* p, point* points, int num_elements)
 	return closest;
 }
 
-point closestAttractor(particle* p)
+void initBone(bone* b, point base, point effector, bone* parent = NULL)
 {
-	int i;
-	point closestAttractor, vector;
-	float distance, shortestDistance;
+	b->base = base;
+	b->effector = effector;
 
-	pDIFFERENCE(attractors[0], p->position, vector);
-	closestAttractor = attractors[0];
-	shortestDistance = length(vector);
-
-	for (i = 1; i < num_attractors; i++)
+	if (parent)
 	{
-		pDIFFERENCE(attractors[i], p->position, vector);
-		distance = length(vector);
-		if (distance < shortestDistance)
-		{
-			closestAttractor = attractors[i];
-			shortestDistance = distance;
-		}
+		b->parent = parent;
+		parent->child = b;
 	}
-
-	return closestAttractor;
-}
-
-point closestRepeller(particle *p)
-{
-	int i;
-	point closestRepeller, vector;
-	float distance, shortestDistance;
-
-	pDIFFERENCE(repellers[0], p->position, vector);
-	closestRepeller = repellers[0];
-	shortestDistance = length(vector);
-
-	for (i = 1; i < num_repellers; i++)
-	{
-		pDIFFERENCE(repellers[i], p->position, vector);
-		distance = length(vector);
-		if (distance < shortestDistance)
-		{
-			closestRepeller = repellers[i];
-			shortestDistance = distance;
-		}
-	}
-
-	return closestRepeller;
 }
 
 void initParticle(particle* p)
 {
-	point attractor;
 	float spread = 4, size = 2 * boxSize;
 
-	if (num_attractors > 0)
-	{
-		float r = randomFloat() * spread;
-		float phi = randomFloat() * 2 * pi;
-		float theta = randomFloat() * pi;
-
-		attractor = closestAttractor(p);
-		p->position = { attractor.x + r * sinf(phi) * cosf(theta),
-						attractor.y + r * sinf(phi) * sinf(theta),
-						attractor.z + r * cosf(phi) };
-	}
-	else
-	{
-		p->position = { size * randomFloat() - size / 2,
-						size * randomFloat() - size / 2,
-						size * randomFloat() - size / 2 };
-	}
+	p->position = { size * randomFloat() - size / 2,
+		size * randomFloat() - size / 2,
+		size * randomFloat() - size / 2 };
 
 	p->velocity = { 0.0f, 0.0f, 0.0f };
 
-	p->color = currentColor();
+	p->color = { 1.0f, 1.0f, 1.0f };
 	p->timeAlive = 0;
 	p->lifeSpan = randomFloat() + 1;
 }
@@ -266,103 +196,21 @@ point mousePosTo3D(int mouseX, int mouseY)
 	return result;
 }
 
-void deleteLastAttractor()
-{
-	if (num_attractors > 0)
-	{
-		num_attractors--;
-		printf("Attractors: %d\n", num_attractors);
-	}
-}
-
-void deleteLastRepeller()
-{
-	if (num_repellers > 0)
-	{
-		num_repellers--;
-		printf("Repellers: %d\n", num_repellers);
-	}
-}
-
-void updateAttractors()
-{
-	if (g_iLeftMouseButton)
-	{
-		if (!mouseButtonHeld && num_attractors < NUM_MAX_ATTRACTORS)
-		{
-			attractors[num_attractors] = mousePosTo3D(g_vMousePos[0], g_vMousePos[1]);
-			num_attractors++;
-			printf("Attractors: %d\n", num_attractors);
-
-			mouseButtonHeld = true;
-		}
-	}
-	else if (g_iMiddleMouseButton)
-	{
-		if (!mouseButtonHeld && num_repellers < NUM_MAX_REPELLERS)
-		{
-			repellers[num_repellers] = mousePosTo3D(g_vMousePos[0], g_vMousePos[1]);
-			num_repellers++;
-			printf("Repellers: %d\n", num_repellers);
-
-			mouseButtonHeld = true;
-		}
-	}
-	else
-	{
-		mouseButtonHeld = false;
-	}
-}
-
-void advanceParticles()
+void initSkeleton(point origin, point vector)
 {
 	int i;
-	float r, phi, theta, speed = 3, length, spread = 6;
-	point temp, dir;
+	point base, effector;
 
-	for (i = 0; i < NUM_PARTICLES; i++)
+	base = origin;
+	pSUM(base, vector, effector);
+
+	initBone(&skeleton[0], base, effector);
+
+	for (i = 1; i < NUM_BONES; i++)
 	{
-		particle *p = &particles[i];
-		pMULTIPLY(p->velocity, step_time, temp);
-		pSUM(p->position, temp, p->position);
-
-		if (num_attractors > 0)
-		{
-			temp = closestAttractor(p);
-			pDIFFERENCE(temp, p->position, dir);
-			//pNORMALIZE(dir);
-
-			//if (length < spread)
-			{
-				r = randomFloat() * 0.5f;
-				phi = randomFloat() * 2 * pi;
-				theta = randomFloat() * pi;
-
-				p->velocity = { speed * dir.x + r * sinf(phi) * cosf(theta),
-								speed * dir.y + r * sinf(phi) * sinf(theta),
-								speed * dir.z + r * cosf(phi) };
-			}
-
-		}
-
-		if (num_repellers > 0)
-		{
-			temp = closestRepeller(p);
-			pDIFFERENCE(p->position, temp, dir);
-			pNORMALIZE(dir);
-
-			if (length < spread)
-			{
-				float mag = speed * (spread - length);
-				pMULTIPLY(dir, mag, dir);
-				pSUM(p->velocity, dir, p->velocity);
-			}
-		}
-
-		p->timeAlive += step_time;
-		if (p->timeAlive > p->lifeSpan) {
-			initParticle(p);
-		}
+		base = effector;
+		pSUM(base, vector, effector);
+		initBone(&skeleton[i], base, effector, &skeleton[i-1]);
 	}
 }
 
@@ -370,51 +218,37 @@ void initParticleSystem()
 {
 	int i;
 
-	num_attractors = 0;
-	num_repellers = 0;
-
 	for (i = 0; i < NUM_PARTICLES; i++)
 	{
 		initParticle(&particles[i]);
 	}
-	for (i = 0; i < 2 / step_time; i++)
-	{
-		advanceParticles();
-	}
 }
 
-void showParticles()
+int getZeroOneColorValue(int i, int size)
 {
-	int i;
-	float alpha;
-	particle *p;
-
-	glBegin(GL_POINTS);
-
-	for (i = 0; i < NUM_PARTICLES; i++)
-	{
-		p = &particles[i];
-		alpha = 0.7f - p->timeAlive / p->lifeSpan;
-		glColor4f(p->color.x, p->color.y, p->color.z, alpha < 0 ? -alpha : alpha);
-		glVertex3f(p->position.x, p->position.y, p->position.z);
-	}
-
-	glEnd();
+	return (int)roundf((float)(i % size) / size);
 }
 
-void showDots()
+void showSkeleton()
 {
-	glBegin(GL_POINTS);
-	glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
-	for (int i = 0; i < num_attractors; i++)
+	int i, red, green, blue;
+	bone *b;
+
+	glBegin(GL_LINES);
+
+	for (i = 0; i < NUM_BONES; i++)
 	{
-		glVertex3f(attractors[i].x, attractors[i].y, attractors[i].z);
+		red = getZeroOneColorValue(i + 2 * NUM_BONES / 3, NUM_BONES);
+		green = getZeroOneColorValue(i + NUM_BONES / 3, NUM_BONES);
+		blue = getZeroOneColorValue(i, NUM_BONES);
+
+		glColor4f(red, green, blue, 1.0f);
+
+		b = &skeleton[i];
+		glVertex3f(b->base.x, b->base.y, b->base.z);
+		glVertex3f(b->effector.x, b->effector.y, b->effector.z);
 	}
-	glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
-	for (int i = 0; i < num_repellers; i++)
-	{
-		glVertex3f(repellers[i].x, repellers[i].y, repellers[i].z);
-	}
+
 	glEnd();
 }
 
@@ -555,8 +389,7 @@ void display()
 	// show the bounding box
 	if (box) showBoundingBox();
 	if (grid) showGrid();
-	if (dots) showDots();
-	showParticles();
+	showSkeleton();
 
 	glutSwapBuffers();
 }
@@ -585,8 +418,7 @@ void doIdle()
 
 	if (pause == 0)
 	{
-		updateAttractors();
-		advanceParticles();
+
 	}
 
 	glutPostRedisplay();
@@ -633,7 +465,7 @@ int main(int argc, char ** argv)
 
 	/* do initialization */
 	myinit();
-	initParticleSystem();
+	initSkeleton({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f });
 
 	/* forever sink in the black hole */
 	glutMainLoop();

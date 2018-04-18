@@ -16,8 +16,7 @@
 #define pi 3.141592653589793238462643383279 
 
 #define NUM_PARTICLES 10000
-#define NUM_MAX_ATTRACTORS 50
-#define NUM_MAX_REPELLERS 50
+#define NUM_BONES 3
 
 // camera angles
 extern double Theta;
@@ -33,8 +32,6 @@ extern int sprite;
 extern int g_vMousePos[2];
 extern int g_iLeftMouseButton, g_iMiddleMouseButton, g_iRightMouseButton;
 
-void deleteLastAttractor(), deleteLastRepeller();
-
 struct point
 {
 	float x;
@@ -42,8 +39,16 @@ struct point
 	float z;
 };
 
+struct bone
+{
+	point base;
+	point effector;
+	bone* parent;
+	bone* child;
+};
+
 // these variables control what is displayed on the screen
-extern int pause, box, grid, dots, saveScreenToFile;
+extern int pause, box, grid, saveScreenToFile;
 
 struct particle
 {
