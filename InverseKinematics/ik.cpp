@@ -114,9 +114,13 @@ void initBone(bone* b, point base, point effector, bone* parent = NULL)
 	}
 }
 
+// Converts 2D mouse position to a 3D point
+//
+// The depth of the point is set to be on the plane that is 
+// perpendicular to camera eye vector and intersects with origin (0, 0, 0)
 point mousePosTo3D(int mouseX, int mouseY)
 {
-	float x, y, length, size = R * 0.58f;;
+	float x, y, length, size = R * 0.58f;
 	point up, right, xPrime, yPrime, result;
 	float aspectRatio = (float)windowWidth / windowHeight;
 
@@ -153,6 +157,8 @@ point mousePosTo3D(int mouseX, int mouseY)
 	return result;
 }
 
+// Initialize the skeleton with NUM_BONES bones
+// Skeleton starts at origin, and every bone extends it by vector
 void initSkeleton(point origin, point vector)
 {
 	int i;
@@ -173,7 +179,8 @@ void initSkeleton(point origin, point vector)
 	target = skeleton[NUM_BONES - 1].effector;
 }
 
-void solveIK(point target)
+// Solve IK based on the target position to move the skeleton to
+void solveIK(point origin, point target)
 {
 	int i;
 	float length;
@@ -181,7 +188,7 @@ void solveIK(point target)
 
 	printf("{ %f, %f, %f }\n", target.x, target.y, target.z);
 
-	// STAGE 1
+	// STAGE 1: Move arm to target
 	skeleton[NUM_BONES - 1].effector = target;
 	for (i = NUM_BONES - 1; i > 0; i--)
 	{
@@ -195,7 +202,7 @@ void solveIK(point target)
 		if (i > 0) skeleton[i - 1].effector = *base;
 	}
 
-	// STAGE 2
+	// STAGE 2: Snap arm back to origin
 	skeleton[0].base = origin;
 	for (i = 0; i < NUM_BONES; i++)
 	{
@@ -238,6 +245,7 @@ void drawSkeleton()
 	glEnd();
 }
 
+// Show tiny dots for origin and target positions
 void showDots()
 {
 	glBegin(GL_POINTS);
@@ -396,6 +404,7 @@ void display()
 
 void doIdle()
 {
+	point p;
 	char s[20] = "picxxxx.ppm";
 
 	// save screen to file
@@ -420,13 +429,21 @@ void doIdle()
 	{
 		if (g_iLeftMouseButton)
 		{
-			target = mousePosTo3D(g_vMousePos[0], g_vMousePos[1]);
-			solveIK(target);
+			p = mousePosTo3D(g_vMousePos[0], g_vMousePos[1]);
+			if (target.x != p.x || target.y != p.y || target.z != p.z)
+			{
+				target = p;
+				solveIK(origin, target);
+			}
 		}
 		else if (g_iMiddleMouseButton)
 		{
-			origin = mousePosTo3D(g_vMousePos[0], g_vMousePos[1]);
-			solveIK(target);
+			p = mousePosTo3D(g_vMousePos[0], g_vMousePos[1]);
+			if (origin.x != p.x || origin.y != p.y || origin.z != p.z)
+			{
+				origin = p;
+				solveIK(origin, target);
+			}
 		}
 	}
 
