@@ -48,16 +48,7 @@ struct bone
 };
 
 // these variables control what is displayed on the screen
-extern int pause, box, grid, saveScreenToFile;
-
-struct particle
-{
-	struct point position;
-	struct point velocity;
-	struct point color;
-	float timeAlive;
-	float lifeSpan;
-};
+extern int pause, box, grid, dots, saveScreenToFile;
 
 // computes crossproduct of three vectors, which are given as points
 // struct point vector1, vector2, dest

@@ -47,10 +47,10 @@ void mouseMotionDrag(int x, int y)
 
 		if (Theta<-pi / 2 + 0.01)
 			Theta = -pi / 2 + 0.01;
-
-		g_vMousePos[0] = x;
-		g_vMousePos[1] = y;
 	}
+
+	g_vMousePos[0] = x;
+	g_vMousePos[1] = y;
 }
 
 void mouseMotion(int x, int y)
@@ -88,7 +88,7 @@ void keyboardFunc(unsigned char key, int x, int y)
 		break;
 
 	case 'd':
-		//dots = 1 - dots;
+		dots = 1 - dots;
 		break;
 
 	case 'b':

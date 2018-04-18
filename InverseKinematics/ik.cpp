@@ -1,7 +1,7 @@
 /*
 
 USC/Viterbi/Computer Science
-"Particle System" Assignment 2
+"Inverse Kinematics" Assignment 3
 
 Your name:
 Osman Kaan Demiroz
@@ -12,9 +12,6 @@ Osman Kaan Demiroz
 #include "showGrid.h"
 #include "input.h"
 
-// particle parameters
-const float step_time = 0.01f;
-
 // camera parameters
 double Theta = -pi / 24;
 double Phi = -pi / 2 - pi / 24;
@@ -23,7 +20,6 @@ double R = 12;
 double boxSize = 12;
 
 // mouse control
-int g_iMenuId;
 int g_vMousePos[2];
 int g_iLeftMouseButton, g_iMiddleMouseButton, g_iRightMouseButton;
 
@@ -33,7 +29,7 @@ int sprite = 0;
 bool mouseButtonHeld = false;
 
 // these variables control what is displayed on screen
-int pause = 0, box = 1, grid = 1, saveScreenToFile = 0;
+int pause = 0, box = 1, grid = 1, dots = 1, saveScreenToFile = 0;
 
 int windowWidth, windowHeight;
 
@@ -43,7 +39,8 @@ float randomFloat()
 }
 
 bone skeleton[NUM_BONES];
-particle particles[NUM_PARTICLES];
+
+point origin = { 0.0f, 0.0f, 0.0f }, target = origin;
 
 void myinit()
 {
@@ -58,9 +55,8 @@ void myinit()
 	glEnable(GL_CULL_FACE);
 
 	glShadeModel(GL_SMOOTH);
-	//glEnable(GL_POLYGON_SMOOTH);
 	glEnable(GL_LINE_SMOOTH);
-	glEnable(GL_POINT_SMOOTH);
+	//glEnable(GL_POINT_SMOOTH);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -106,30 +102,6 @@ float length(point p)
 	return sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
 }
 
-point closestElement(particle* p, point* points, int num_elements)
-{
-	int i;
-	point closest, vector;
-	float distance, shortestDistance;
-
-	pDIFFERENCE(points[0], p->position, vector);
-	closest = points[0];
-	shortestDistance = length(vector);
-
-	for (i = 1; i < num_elements; i++)
-	{
-		pDIFFERENCE(points[i], p->position, vector);
-		distance = length(vector);
-		if (distance < shortestDistance)
-		{
-			closest = points[i];
-			shortestDistance = distance;
-		}
-	}
-
-	return closest;
-}
-
 void initBone(bone* b, point base, point effector, bone* parent = NULL)
 {
 	b->base = base;
@@ -140,21 +112,6 @@ void initBone(bone* b, point base, point effector, bone* parent = NULL)
 		b->parent = parent;
 		parent->child = b;
 	}
-}
-
-void initParticle(particle* p)
-{
-	float spread = 4, size = 2 * boxSize;
-
-	p->position = { size * randomFloat() - size / 2,
-		size * randomFloat() - size / 2,
-		size * randomFloat() - size / 2 };
-
-	p->velocity = { 0.0f, 0.0f, 0.0f };
-
-	p->color = { 1.0f, 1.0f, 1.0f };
-	p->timeAlive = 0;
-	p->lifeSpan = randomFloat() + 1;
 }
 
 point mousePosTo3D(int mouseX, int mouseY)
@@ -212,15 +169,44 @@ void initSkeleton(point origin, point vector)
 		pSUM(base, vector, effector);
 		initBone(&skeleton[i], base, effector, &skeleton[i-1]);
 	}
+
+	target = skeleton[NUM_BONES - 1].effector;
 }
 
-void initParticleSystem()
+void solveIK(point target)
 {
 	int i;
+	float length;
+	point *base, *effector, vector;
 
-	for (i = 0; i < NUM_PARTICLES; i++)
+	printf("{ %f, %f, %f }\n", target.x, target.y, target.z);
+
+	// STAGE 1
+	skeleton[NUM_BONES - 1].effector = target;
+	for (i = NUM_BONES - 1; i > 0; i--)
 	{
-		initParticle(&particles[i]);
+		base = &skeleton[i].base;
+		effector = &skeleton[i].effector;
+
+		pDIFFERENCE(*base, *effector, vector);
+		pNORMALIZE(vector);
+		pSUM(*effector, vector, *base);
+
+		if (i > 0) skeleton[i - 1].effector = *base;
+	}
+
+	// STAGE 2
+	skeleton[0].base = origin;
+	for (i = 0; i < NUM_BONES; i++)
+	{
+		base = &skeleton[i].base;
+		effector = &skeleton[i].effector;
+
+		pDIFFERENCE(*effector, *base, vector);
+		pNORMALIZE(vector);
+		pSUM(*base, vector, *effector);
+
+		if (i < NUM_BONES - 1) skeleton[i + 1].base = *effector;
 	}
 }
 
@@ -229,7 +215,7 @@ int getZeroOneColorValue(int i, int size)
 	return (int)roundf((float)(i % size) / size);
 }
 
-void showSkeleton()
+void drawSkeleton()
 {
 	int i, red, green, blue;
 	bone *b;
@@ -248,6 +234,19 @@ void showSkeleton()
 		glVertex3f(b->base.x, b->base.y, b->base.z);
 		glVertex3f(b->effector.x, b->effector.y, b->effector.z);
 	}
+
+	glEnd();
+}
+
+void showDots()
+{
+	glBegin(GL_POINTS);
+
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	glVertex3f(origin.x, origin.y, origin.z);
+
+	glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+	glVertex3f(target.x, target.y, target.z);
 
 	glEnd();
 }
@@ -389,7 +388,8 @@ void display()
 	// show the bounding box
 	if (box) showBoundingBox();
 	if (grid) showGrid();
-	showSkeleton();
+	if (dots) showDots();
+	drawSkeleton();
 
 	glutSwapBuffers();
 }
@@ -418,7 +418,16 @@ void doIdle()
 
 	if (pause == 0)
 	{
-
+		if (g_iLeftMouseButton)
+		{
+			target = mousePosTo3D(g_vMousePos[0], g_vMousePos[1]);
+			solveIK(target);
+		}
+		else if (g_iMiddleMouseButton)
+		{
+			origin = mousePosTo3D(g_vMousePos[0], g_vMousePos[1]);
+			solveIK(target);
+		}
 	}
 
 	glutPostRedisplay();
@@ -437,7 +446,7 @@ int main(int argc, char ** argv)
 	windowHeight = 480;
 	glutInitWindowSize(windowWidth, windowHeight);
 	glutInitWindowPosition(0, 0);
-	glutCreateWindow("Particle System");
+	glutCreateWindow("Inverse Kinematics");
 
 	/* tells glut to use a particular display function to redraw */
 	glutDisplayFunc(display);
@@ -465,7 +474,7 @@ int main(int argc, char ** argv)
 
 	/* do initialization */
 	myinit();
-	initSkeleton({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f });
+	initSkeleton(origin, { 0.0f, 0.0f, -1.0f });
 
 	/* forever sink in the black hole */
 	glutMainLoop();
