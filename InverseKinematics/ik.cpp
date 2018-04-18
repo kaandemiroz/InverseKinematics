@@ -182,38 +182,45 @@ void initSkeleton(point origin, point vector)
 // Solve IK based on the target position to move the skeleton to
 void solveIK(point origin, point target)
 {
-	int i;
+	int i, n;
 	float length;
 	point *base, *effector, vector;
 
-	printf("{ %f, %f, %f }\n", target.x, target.y, target.z);
+	printf("Target: { %f, %f, %f }\n", target.x, target.y, target.z);
 
-	// STAGE 1: Move arm to target
-	skeleton[NUM_BONES - 1].effector = target;
-	for (i = NUM_BONES - 1; i > 0; i--)
+	for (n = 0; n < NUM_ITERATIONS; n++)
 	{
-		base = &skeleton[i].base;
-		effector = &skeleton[i].effector;
+		// STAGE 1: Move arm to target
+		skeleton[NUM_BONES - 1].effector = target;
+		for (i = NUM_BONES - 1; i > 0; i--)
+		{
+			base = &skeleton[i].base;
+			effector = &skeleton[i].effector;
 
-		pDIFFERENCE(*base, *effector, vector);
+			pDIFFERENCE(*base, *effector, vector);
+			pNORMALIZE(vector);
+			pSUM(*effector, vector, *base);
+
+			if (i > 0) skeleton[i - 1].effector = *base;
+		}
+
+		// STAGE 2: Snap arm back to origin
+		skeleton[0].base = origin;
+		for (i = 0; i < NUM_BONES; i++)
+		{
+			base = &skeleton[i].base;
+			effector = &skeleton[i].effector;
+
+			pDIFFERENCE(*effector, *base, vector);
+			pNORMALIZE(vector);
+			pSUM(*base, vector, *effector);
+
+			if (i < NUM_BONES - 1) skeleton[i + 1].base = *effector;
+		}
+
+		pDIFFERENCE(target, skeleton[NUM_BONES - 1].effector, vector);
 		pNORMALIZE(vector);
-		pSUM(*effector, vector, *base);
-
-		if (i > 0) skeleton[i - 1].effector = *base;
-	}
-
-	// STAGE 2: Snap arm back to origin
-	skeleton[0].base = origin;
-	for (i = 0; i < NUM_BONES; i++)
-	{
-		base = &skeleton[i].base;
-		effector = &skeleton[i].effector;
-
-		pDIFFERENCE(*effector, *base, vector);
-		pNORMALIZE(vector);
-		pSUM(*base, vector, *effector);
-
-		if (i < NUM_BONES - 1) skeleton[i + 1].base = *effector;
+		printf("Iteration: %d, Error: %f\n", n, length);
 	}
 }
 

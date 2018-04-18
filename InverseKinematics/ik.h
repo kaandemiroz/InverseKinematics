@@ -15,8 +15,8 @@
 
 #define pi 3.141592653589793238462643383279 
 
-#define NUM_PARTICLES 10000
-#define NUM_BONES 3
+#define NUM_BONES 10
+#define NUM_ITERATIONS 10
 
 // camera angles
 extern double Theta;
