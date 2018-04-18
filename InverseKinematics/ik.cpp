@@ -179,7 +179,9 @@ void initSkeleton(point origin, point vector)
 	target = skeleton[NUM_BONES - 1].effector;
 }
 
-// Solve IK based on the target position to move the skeleton to
+// Solve IK using the FABRIK method
+// (Forwards And Backwards Reaching Inverse Kinematics)
+// based on the target position to move the arm to
 void solveIK(point origin, point target)
 {
 	int i, n;
