@@ -38,9 +38,10 @@ float randomFloat()
 	return (float)rand() / ((float)RAND_MAX + 1);
 }
 
-bone skeleton[NUM_BONES];
+bone skeleton[NUM_MAX_BONES];
 
 point origin = { 0.0f, 0.0f, 0.0f }, target = origin;
+int numBones = NUM_MIN_BONES;
 
 void myinit()
 {
@@ -169,14 +170,14 @@ void initSkeleton(point origin, point vector)
 
 	initBone(&skeleton[0], base, effector);
 
-	for (i = 1; i < NUM_BONES; i++)
+	for (i = 1; i < numBones; i++)
 	{
 		base = effector;
 		pSUM(base, vector, effector);
-		initBone(&skeleton[i], base, effector, &skeleton[i-1]);
+		initBone(&skeleton[i], base, effector, &skeleton[i - 1]);
 	}
 
-	target = skeleton[NUM_BONES - 1].effector;
+	target = skeleton[numBones - 1].effector;
 }
 
 // Solve IK using the FABRIK method
@@ -185,7 +186,7 @@ void initSkeleton(point origin, point vector)
 void solveIK(point origin, point target)
 {
 	int i, n;
-	float length;
+	float len;
 	point *base, *effector, vector;
 
 	printf("Target: { %f, %f, %f }\n", target.x, target.y, target.z);
@@ -193,14 +194,18 @@ void solveIK(point origin, point target)
 	for (n = 0; n < NUM_ITERATIONS; n++)
 	{
 		// STAGE 1: Move arm to target
-		skeleton[NUM_BONES - 1].effector = target;
-		for (i = NUM_BONES - 1; i > 0; i--)
+		skeleton[numBones - 1].effector = target;
+		for (i = numBones - 1; i > 0; i--)
 		{
 			base = &skeleton[i].base;
 			effector = &skeleton[i].effector;
 
 			pDIFFERENCE(*base, *effector, vector);
-			pNORMALIZE(vector);
+			len = length(vector);
+			if (len != 0)
+			{
+				pMULTIPLY(vector, 1 / len, vector);
+			}
 			pSUM(*effector, vector, *base);
 
 			if (i > 0) skeleton[i - 1].effector = *base;
@@ -208,21 +213,53 @@ void solveIK(point origin, point target)
 
 		// STAGE 2: Snap arm back to origin
 		skeleton[0].base = origin;
-		for (i = 0; i < NUM_BONES; i++)
+		for (i = 0; i < numBones; i++)
 		{
 			base = &skeleton[i].base;
 			effector = &skeleton[i].effector;
 
 			pDIFFERENCE(*effector, *base, vector);
-			pNORMALIZE(vector);
+			len = length(vector);
+			if (len != 0)
+			{
+				pMULTIPLY(vector, 1 / len, vector);
+			}
 			pSUM(*base, vector, *effector);
 
-			if (i < NUM_BONES - 1) skeleton[i + 1].base = *effector;
+			if (i < numBones - 1) skeleton[i + 1].base = *effector;
 		}
 
-		pDIFFERENCE(target, skeleton[NUM_BONES - 1].effector, vector);
-		pNORMALIZE(vector);
-		printf("Iteration: %d, Error: %f\n", n, length);
+		pDIFFERENCE(target, skeleton[numBones - 1].effector, vector);
+		printf("Iteration: %d, Error: %f\n", n, length(vector));
+	}
+}
+
+void incrementBones()
+{
+	point base, effector, vector;
+
+	if (numBones < NUM_MAX_BONES)
+	{
+		base = skeleton[numBones - 1].base;
+		effector = skeleton[numBones - 1].effector;
+		pDIFFERENCE(effector, base, vector);
+
+		base = skeleton[numBones - 1].effector;
+		pSUM(base, vector, effector);
+
+		target = effector;
+		initBone(&skeleton[numBones], base, effector, &skeleton[numBones - 1]);
+		numBones++;
+		solveIK(origin, target);
+	}
+}
+
+void decrementBones()
+{
+	if (numBones > NUM_MIN_BONES)
+	{
+		numBones--;
+		solveIK(origin, target);
 	}
 }
 
@@ -238,11 +275,11 @@ void drawSkeleton()
 
 	glBegin(GL_LINES);
 
-	for (i = 0; i < NUM_BONES; i++)
+	for (i = 0; i < numBones; i++)
 	{
-		red = getZeroOneColorValue(i + 2 * NUM_BONES / 3, NUM_BONES);
-		green = getZeroOneColorValue(i + NUM_BONES / 3, NUM_BONES);
-		blue = getZeroOneColorValue(i, NUM_BONES);
+		red = getZeroOneColorValue(i + 2 * numBones / 3, numBones);
+		green = getZeroOneColorValue(i + numBones / 3, numBones);
+		blue = getZeroOneColorValue(i, numBones);
 
 		glColor4f(red, green, blue, 1.0f);
 
@@ -259,10 +296,10 @@ void showDots()
 {
 	glBegin(GL_POINTS);
 
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
 	glVertex3f(origin.x, origin.y, origin.z);
 
-	glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+	glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
 	glVertex3f(target.x, target.y, target.z);
 
 	glEnd();

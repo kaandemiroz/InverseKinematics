@@ -15,7 +15,8 @@
 
 #define pi 3.141592653589793238462643383279 
 
-#define NUM_BONES 10
+#define NUM_MAX_BONES 100
+#define NUM_MIN_BONES 3
 #define NUM_ITERATIONS 10
 
 // camera angles
@@ -31,6 +32,8 @@ extern int sprite;
 // mouse control
 extern int g_vMousePos[2];
 extern int g_iLeftMouseButton, g_iMiddleMouseButton, g_iRightMouseButton;
+
+void incrementBones(), decrementBones();
 
 struct point
 {

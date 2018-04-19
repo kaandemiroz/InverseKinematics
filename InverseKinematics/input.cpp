@@ -31,7 +31,7 @@ void mouseMotionDrag(int x, int y)
 {
 	int vMouseDelta[2] = { x - g_vMousePos[0], y - g_vMousePos[1] };
 
-	if (/*g_iLeftMouseButton || */g_iRightMouseButton/* || g_iMiddleMouseButton*/) // handle camera rotations
+	if (g_iRightMouseButton) // handle camera rotations
 	{
 		Phi += -vMouseDelta[0] * 0.01;
 		Theta += vMouseDelta[1] * 0.01;
@@ -87,6 +87,14 @@ void keyboardFunc(unsigned char key, int x, int y)
 		exit(0);
 		break;
 
+	case '[':
+		decrementBones();
+		break;
+
+	case ']':
+		incrementBones();
+		break;
+
 	case 'd':
 		dots = 1 - dots;
 		break;
@@ -101,7 +109,7 @@ void keyboardFunc(unsigned char key, int x, int y)
 
 	case 'r':
 		Theta = -pi / 24;
-		Phi = -pi / 2;
+		Phi = -pi / 2 - pi / 24;
 		R = 12;
 		break;
 
